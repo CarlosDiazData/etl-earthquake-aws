@@ -121,13 +121,9 @@ etl-earthquake-aws/
 │   ├── process_bronze_to_silver.py   # Bronze→Silver Glue job
 │   └── prosses_silver_gold.py        # Silver→Gold Glue job
 │
-├── tests/
-│   └── unit/
-│       └── test_etl_stack.py  # CDK unit tests
-│
-└── .agents/
-    └── skills/
-        └── aws-cdk-etl/       # CDK ETL best practices & references
+└── tests/
+    └── unit/
+        └── test_etl_stack.py  # CDK unit tests
 ```
 
 ## Getting Started
