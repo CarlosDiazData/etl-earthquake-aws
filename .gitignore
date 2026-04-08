@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# CDK output
+cdk.out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# CDK context and local config
+.cdk.context.json
+cdk.context.json
+*.local.json
+
+# Logs
+*.log
+
+# Agents and Skills
+.agents/
+skills-lock.json
