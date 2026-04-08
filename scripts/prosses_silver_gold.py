@@ -84,8 +84,12 @@ def main():
         record_count = df_silver.count()
         logger.info(f"Successfully read {record_count} records from the Silver layer.")
     except Exception as e:
-        logger.error(f"Failed to read from Silver layer. Error: {e}", exc_info=True)
+        logger.error(f"Failed to read from Silver layer. Error: {e}")
         raise
+
+    # Ensure the Gold database exists
+    logger.info(f"Ensuring database '{GOLD_DATABASE}' exists...")
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {GOLD_DATABASE}")
 
     # --- 3. Dimension Modeling Phase ---
     logger.info("--- Step 3: Creating Dimension Tables ---")
@@ -234,7 +238,7 @@ def main():
         
         logger.info("--- Silver to Gold (Dimensional Model) Job COMPLETED SUCCESSFULLY ---")
     except Exception as e:
-        logger.error(f"Critical error during Gold layer writing: {e}", exc_info=True)
+        logger.error(f"Critical error during Gold layer writing: {e}")
         raise e
 
 if __name__ == "__main__":

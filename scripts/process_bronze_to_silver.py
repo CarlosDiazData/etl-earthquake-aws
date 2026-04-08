@@ -116,7 +116,7 @@ def main():
         logger.info(f"Successfully flattened raw data. Record count: {record_count}")
         
     except Exception as e:
-        logger.error(f"Failed during Ingestion/Flattening phase. Error: {e}", exc_info=True)
+        logger.error(f"Failed during Ingestion/Flattening phase. Error: {e}")
         raise
 
     # --- 3. Transformation Phase (Clean, Validate, Deduplicate) ---
@@ -219,7 +219,7 @@ def main():
         
         logger.info(f"Successfully wrote data to: {SILVER_PATH}")
     except Exception as e:
-        logger.error(f"Failed to write data to S3. Error: {e}", exc_info=True)
+        logger.error(f"Failed to write data to S3. Error: {e}")
         raise
         
     logger.info("--- Job Finalized Successfully ---")
