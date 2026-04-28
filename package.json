@@ -1,0 +1,9 @@
+{
+  "name": "etl-earthquake-aws",
+  "version": "1.0.0",
+  "description": "Earthquake ETL Pipeline on AWS",
+  "private": true,
+  "devDependencies": {
+    "aws-cdk": "^2.248.0"
+  }
+}
