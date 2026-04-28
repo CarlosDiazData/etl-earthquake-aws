@@ -1,10 +1,9 @@
-from aws_cdk import Stack, Environment
+from aws_cdk import Stack
 from aws_cdk import aws_codecommit as codecommit
 from aws_cdk import aws_codebuild as codebuild
 from aws_cdk import aws_codepipeline as codepipeline
 from aws_cdk import aws_codepipeline_actions as codepipeline_actions
 from aws_cdk import aws_iam as iam
-from aws_cdk import pipelines
 from constructs import Construct
 
 
@@ -12,6 +11,9 @@ class CicdPipelineStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # =========================================================
+        # CodeCommit Repository (shared by both pipelines)
+        # =========================================================
         repo = codecommit.Repository(
             self,
             "ETLRepository",
@@ -19,6 +21,39 @@ class CicdPipelineStack(Stack):
         )
 
         self.repo = repo
+
+        # =========================================================
+        # IAM Role for CodeBuild projects
+        # =========================================================
+        codebuild_role = iam.Role(
+            self,
+            "CodeBuildRole",
+            assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
+            description="Role for CodeBuild to deploy CDK stacks",
+        )
+
+        # Policy for CodeBuild to run CDK
+        codebuild_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "cloudformation:*",
+                    "s3:*",
+                    "lambda:*",
+                    "iam:*",
+                    "glue:*",
+                    "stepfunctions:*",
+                    "events:*",
+                    "sns:*",
+                    "cloudwatch:*",
+                    "kms:*",
+                    "codecommit:*",
+                    "codepipeline:*",
+                    "codebuild:*",
+                ],
+                resources=["*"],
+            )
+        )
 
         # =========================================================
         # PIPELINE 1: DEV - Auto-deploy from development branch
@@ -29,7 +64,7 @@ class CicdPipelineStack(Stack):
             pipeline_name="earthquake-etl-dev-pipeline",
         )
 
-        # Source stage - listens to 'development' branch
+        # Source stage
         dev_source_output = codepipeline.Artifact()
         dev_source_stage = dev_pipeline.add_stage(stage_name="Source")
 
@@ -41,12 +76,20 @@ class CicdPipelineStack(Stack):
         )
         dev_source_stage.add_action(dev_source_action)
 
-        # Build stage
+        # Build stage - synth + deploy
         dev_build_project = codebuild.PipelineProject(
             self,
             "DevBuildProject",
+            role=codebuild_role,
             build_spec=codebuild.BuildSpec.from_object({
                 "version": "0.2",
+                "env": {
+                    "variables": {
+                        "ENV_NAME": "dev",
+                        "AWS_ACCOUNT_ID": {".Ref": "AWS::AccountId"},
+                        "AWS_REGION": {"Ref": "AWS::Region"},
+                    }
+                },
                 "phases": {
                     "install": {
                         "commands": [
@@ -85,7 +128,7 @@ class CicdPipelineStack(Stack):
             pipeline_name="earthquake-etl-prod-pipeline",
         )
 
-        # Source stage - listens to 'main' branch
+        # Source stage
         prod_source_output = codepipeline.Artifact()
         prod_source_stage = prod_pipeline.add_stage(stage_name="Source")
 
@@ -97,12 +140,20 @@ class CicdPipelineStack(Stack):
         )
         prod_source_stage.add_action(prod_source_action)
 
-        # Build stage - synth only, no deploy
+        # Build stage - synth only
         prod_build_project = codebuild.PipelineProject(
             self,
             "ProdBuildProject",
+            role=codebuild_role,
             build_spec=codebuild.BuildSpec.from_object({
                 "version": "0.2",
+                "env": {
+                    "variables": {
+                        "ENV_NAME": "prod",
+                        "AWS_ACCOUNT_ID": {".Ref": "AWS::AccountId"},
+                        "AWS_REGION": {"Ref": "AWS::Region"},
+                    }
+                },
                 "phases": {
                     "install": {
                         "commands": [
@@ -146,8 +197,16 @@ class CicdPipelineStack(Stack):
         prod_deploy_project = codebuild.PipelineProject(
             self,
             "ProdDeployProject",
+            role=codebuild_role,
             build_spec=codebuild.BuildSpec.from_object({
                 "version": "0.2",
+                "env": {
+                    "variables": {
+                        "ENV_NAME": "prod",
+                        "AWS_ACCOUNT_ID": {".Ref": "AWS::AccountId"},
+                        "AWS_REGION": {"Ref": "AWS::Region"},
+                    }
+                },
                 "phases": {
                     "build": {
                         "commands": [
