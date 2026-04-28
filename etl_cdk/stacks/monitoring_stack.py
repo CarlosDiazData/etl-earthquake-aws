@@ -1,6 +1,7 @@
 from aws_cdk import (
     Duration,
     Stack,
+    CfnParameter,
     aws_cloudwatch as cloudwatch,
     aws_cloudwatch_actions as actions,
     aws_sns as sns,
@@ -31,8 +32,18 @@ class MonitoringStack(Stack):
             display_name="Earthquake ETL Pipeline Alerts",
         )
 
+        alert_email = CfnParameter(
+            self,
+            "AlertEmail",
+            type="String",
+            default="admin@example.com",
+            description="Email address for ETL alert notifications",
+            allowed_pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$",
+            no_echo=False,
+        )
+
         alert_topic.add_subscription(
-            subs.EmailSubscription("admin@example.com")
+            subs.EmailSubscription(alert_email.value_as_string)
         )
 
         bronze_to_silver_failure_alarm = cloudwatch.Alarm(

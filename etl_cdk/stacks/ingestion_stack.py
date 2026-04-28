@@ -49,6 +49,17 @@ class IngestionStack(Stack):
             )
         )
 
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "xray:PutTraceSegments",
+                    "xray:GetTraceGraph",
+                ],
+                resources=["*"],
+            )
+        )
+
         script_path = str(
             pathlib.Path(__file__).resolve().parent.parent.parent / "lambda_code"
         )
@@ -67,6 +78,7 @@ class IngestionStack(Stack):
                 "S3_BUCKET_NAME": data_bucket.bucket_name,
             },
             description="Fetches earthquake data from USGS API and stores in S3 Bronze layer",
+            tracing=_lambda.Tracing.ACTIVE,
         )
 
         schedule_rule = events.Rule(

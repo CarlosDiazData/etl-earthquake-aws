@@ -102,7 +102,12 @@ class OrchestrationStack(Stack):
         )
 
         definition = (
-            invoke_lambda.next(bronze_to_silver_task).next(silver_to_gold_task)
+            invoke_lambda.next(
+                sfn.Choice(self, "CheckRecordsCount")
+                .when(sfn.Condition.number_equals("$.recordsCount", 0), sfn.Pass(self, "NoRecordsSkipped"))
+                .when(sfn.Condition.number_greater_than("$.recordsCount", 0), bronze_to_silver_task.next(silver_to_gold_task))
+                .otherwise(sfn.Pass(self, "UnexpectedState"))
+            )
         )
 
         self.state_machine = sfn.StateMachine(
