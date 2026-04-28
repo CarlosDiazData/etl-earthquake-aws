@@ -33,6 +33,4 @@ jobs:
 
       - name: Deploy to PROD
         run: |
-          cdk deploy --all --context ENV_NAME=prod --require-approval=never
-        env:
-          ENV_NAME: prod
+          npx cdk deploy --all --context ENV_NAME=prod --require-approval=never
