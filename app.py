@@ -1,5 +1,4 @@
 import os
-import sys
 import aws_cdk as cdk
 from aws_cdk import Environment
 from etl_cdk.stacks.data_lake_stack import DataLakeStack
@@ -10,30 +9,22 @@ from etl_cdk.stacks.monitoring_stack import MonitoringStack
 
 APP_NAME = "earthquake-etl"
 
-# ENV_NAME from CDK context (passed by CI/CD) or environment variable or CLI argument
+# ENV_NAME from CDK context (passed by GitHub Actions CI/CD)
 # Usage: cdk deploy --context ENV_NAME=dev
 app = cdk.App()
 
-_env_from_context = app.node.try_get_context("env_name")
-if _env_from_context:
-    ENV_NAME = _env_from_context
-elif len(sys.argv) > 1:
-    ENV_NAME = sys.argv[1]
-else:
-    ENV_NAME = os.getenv("ENV_NAME", "dev")
+ENV_NAME = app.node.try_get_context("env_name") or os.getenv("ENV_NAME", "dev")
 
 # Environment configuration
-# In CI/CD (CodeBuild): CDK auto-detects account/region from IAM role
-# Locally: uses AWS_ACCOUNT/AWS_REGION env vars or defaults
+# In GitHub Actions: CDK auto-detects account/region from OIDC role
+# Locally: uses CDK_DEFAULT_ACCOUNT/CDK_DEFAULT_REGION env vars
 AWS_ACCOUNT = os.environ.get("CDK_DEFAULT_ACCOUNT")
 AWS_REGION = os.environ.get("CDK_DEFAULT_REGION", "us-east-1")
 
 if AWS_ACCOUNT:
-    # Explicit env when running locally (with credentials)
     deploy_env = Environment(account=AWS_ACCOUNT, region=AWS_REGION)
 else:
-    # Environment-agnostic for CI/CD (uses IAM role's account)
-    deploy_env = None
+    deploy_env = None  # CI/CD: uses IAM role's account
 
 data_lake = DataLakeStack(
     app,
@@ -89,15 +80,5 @@ MonitoringStack(
     state_machine=orchestration.state_machine,
     env=deploy_env,
 )
-
-# Optionally deploy CI/CD pipeline stack
-# Usage: cdk deploy --context include_pipeline=true
-if app.node.try_get_context("include_pipeline") == "true":
-    from etl_cdk.stacks.cicd_pipeline_stack import CicdPipelineStack
-    CicdPipelineStack(
-        app,
-        f"{APP_NAME}-cicd-pipeline",
-        env=deploy_env,
-    )
 
 app.synth()
