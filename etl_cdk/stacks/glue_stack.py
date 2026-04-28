@@ -80,6 +80,20 @@ class GlueStack(Stack):
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:ReEncrypt*",
+                    "kms:GenerateDataKey*",
+                    "kms:DescribeKey",
+                ],
+                resources=["*"],
+            )
+        )
+
+        glue_service_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
                     "glue:GetDatabase",
                     "glue:GetDatabases",
                     "glue:CreateDatabase",
@@ -144,6 +158,7 @@ class GlueStack(Stack):
                 "--spark-event-logs-path": f"s3://{data_bucket.bucket_name}/spark-logs/",
                 "--TempDir": f"s3://{data_bucket.bucket_name}/temp/",
                 "--job-bookmark-option": "job-bookmark-enable",
+                "--enable-xray-tracing": "true",
                 "--S3_BUCKET_NAME": data_bucket.bucket_name,
                 "--conf": "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog",
             },
@@ -173,6 +188,7 @@ class GlueStack(Stack):
                 "--spark-event-logs-path": f"s3://{data_bucket.bucket_name}/spark-logs/",
                 "--TempDir": f"s3://{data_bucket.bucket_name}/temp/",
                 "--job-bookmark-option": "job-bookmark-enable",
+                "--enable-xray-tracing": "true",
                 "--S3_BUCKET_NAME": data_bucket.bucket_name,
                 "--conf": "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog",
             },
