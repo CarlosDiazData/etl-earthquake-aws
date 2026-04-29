@@ -60,6 +60,18 @@ class IngestionStack(Stack):
             )
         )
 
+        # KMS permissions for S3 encryption (bucket uses KMS encryption)
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kms:GenerateDataKey",
+                    "kms:Decrypt",
+                ],
+                resources=["*"],
+            )
+        )
+
         script_path = str(
             pathlib.Path(__file__).resolve().parent.parent.parent / "lambda_code"
         )

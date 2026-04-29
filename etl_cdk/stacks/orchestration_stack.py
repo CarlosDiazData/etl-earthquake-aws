@@ -53,6 +53,19 @@ class OrchestrationStack(Stack):
             backoff_rate=2,
         )
 
+        # Catch Lambda failures and set recordsCount=0 so the Choice state has a valid path
+        invoke_lambda.add_catch(
+            handler=sfn.Pass(
+                self,
+                "LambdaFailed",
+                parameters={
+                    "recordsCount": 0,
+                    "error": "lambdaError",
+                },
+            ),
+            errors=["States.ALL"],
+        )
+
         bronze_to_silver_task = tasks.GlueStartJobRun(
             self,
             "ProcessBronzeToSilver",
