@@ -3,28 +3,36 @@ name: Deploy to DEV
 on:
   push:
     branches:
-      - development
+      - develop
   workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install CDK
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: CDK Synthesize
+        run: npx cdk synth --all --context ENV_NAME=dev
 
       - name: Deploy to DEV
         run: npx cdk deploy --all --context ENV_NAME=dev --require-approval never --ci
@@ -32,3 +40,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+
+# test CI trigger
