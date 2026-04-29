@@ -7,11 +7,51 @@ from awsglue.job import Job
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-from pyspark.sql.types import TimestampType, IntegerType, DoubleType, BooleanType
+from pyspark.sql.types import TimestampType, IntegerType, DoubleType, BooleanType, StructType, StructField, StringType, ArrayType, MapType
+
+# USGS GeoJSON schema (FeatureCollection with nested features array)
+USGS_SCHEMA = StructType([
+    StructField("type", StringType(), True),
+    StructField("metadata", MapType(StringType(), StringType()), True),
+    StructField("features", ArrayType(StructType([
+        StructField("type", StringType(), True),
+        StructField("id", StringType(), True),
+        StructField("geometry", StructType([
+            StructField("type", StringType(), True),
+            StructField("coordinates", ArrayType(DoubleType()), True),
+        ]), True),
+        StructField("properties", StructType([
+            StructField("mag", DoubleType(), True),
+            StructField("place", StringType(), True),
+            StructField("time", DoubleType(), True),
+            StructField("updated", DoubleType(), True),
+            StructField("url", StringType(), True),
+            StructField("felt", DoubleType(), True),
+            StructField("cdi", DoubleType(), True),
+            StructField("mmi", DoubleType(), True),
+            StructField("alert", StringType(), True),
+            StructField("status", StringType(), True),
+            StructField("tsunami", IntegerType(), True),
+            StructField("sig", IntegerType(), True),
+            StructField("net", StringType(), True),
+            StructField("code", StringType(), True),
+            StructField("nst", DoubleType(), True),
+            StructField("dmin", DoubleType(), True),
+            StructField("rms", DoubleType(), True),
+            StructField("gap", DoubleType(), True),
+            StructField("magType", StringType(), True),
+            StructField("type", StringType(), True),
+            StructField("title", StringType(), True),
+        ]), True),
+    ])), True),
+    StructField("bbox", ArrayType(DoubleType()), True),
+])
 
 """
 Process Bronze to Silver Script
-================================
+
+
+...
 
 Description:
     This Glue job is responsible for reading raw earthquake data from the Bronze layer (S3),
@@ -71,7 +111,7 @@ def main():
     
     try:
         logger.info(f"Reading raw JSON data from: {BRONZE_PATH}")
-        df_bronze_raw = spark.read.json(BRONZE_PATH)
+        df_bronze_raw = spark.read.schema(USGS_SCHEMA).json(BRONZE_PATH)
 
         # Graceful exit if no data found
         if df_bronze_raw.rdd.isEmpty():
