@@ -1,4 +1,5 @@
 import sys
+import logging
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
@@ -50,8 +51,13 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-# Initialize Logger
-logger = glueContext.get_logger()
+# Initialize Python standard logger ( avoids Py4J errors on Spark executors )
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+logger.addHandler(_handler)
+logger.propagate = False
 logger.info("Initializing Silver to Gold ETL Job (Dimensional Modeling)...")
 
 # Configuration & Paths
@@ -75,8 +81,16 @@ def main():
     logger.info("--- Step 2: Reading Silver Layer Data ---")
     try:
         logger.info(f"Reading Delta table from: {SILVER_PATH}")
+        silver_exists = spark._jvm().org.apache.hadoop.fs.FileSystem \
+            .get(spark._jsparkSession.sparkContext().hadoopConfiguration()) \
+            .exists(spark._jvm().org.apache.hadoop.fs.Path(SILVER_PATH))
+
+        if not silver_exists:
+            logger.warning(f"Silver path does not exist: {SILVER_PATH}. Skipping gold processing.")
+            return
+
         df_silver = spark.read.format("delta").load(SILVER_PATH)
-        
+
         if df_silver.rdd.isEmpty():
             logger.warning("Silver layer is empty. No data to process. Job finished successfully (no-op).")
             return

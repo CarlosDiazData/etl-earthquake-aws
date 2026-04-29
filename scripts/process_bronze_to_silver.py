@@ -114,7 +114,17 @@ def main():
 
     # --- 2. Ingestion & Flattening Phase ---
     logger.info("--- Step 2: Ingestion & Flattening ---")
-    
+
+    # Check if bronze path exists before attempting to read
+    bronze_path = spark._jvm().org.apache.hadoop.fs.Path(BRONZE_PATH)
+    bronze_fs = spark._jvm().org.apache.hadoop.fs.FileSystem \
+        .get(spark._jsparkSession.sparkContext().hadoopConfiguration())
+    bronze_exists = bronze_fs.exists(bronze_path)
+
+    if not bronze_exists:
+        logger.warning(f"Bronze path does not exist: {BRONZE_PATH}. Skipping processing.")
+        return
+
     try:
         logger.info(f"Reading raw JSON data from: {BRONZE_PATH}")
         df_bronze_raw = spark.read.schema(USGS_SCHEMA).json(BRONZE_PATH)
