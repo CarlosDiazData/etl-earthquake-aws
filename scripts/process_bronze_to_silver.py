@@ -1,4 +1,5 @@
 import sys
+import logging
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
@@ -87,8 +88,13 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-# Initialize Logger
-logger = glueContext.get_logger()
+# Initialize Python standard logger ( GlueContext.get_logger() can cause Py4J errors on executors )
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+logger.addHandler(_handler)
+logger.propagate = False
 logger.info("Initializing Bronze to Silver ETL Job...")
 
 # Environment Variables & Paths
