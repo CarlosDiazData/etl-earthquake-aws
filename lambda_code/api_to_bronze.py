@@ -226,9 +226,10 @@ def lambda_handler(event, context):
                 "statusCode": 200,
                 "body": json.dumps({
                     "message": "No new earthquake data found",
-                    "record_count": 0,
+                    "recordsCount": 0,
                     "ingestion_mode": ingestion_mode
-                })
+                }),
+                "recordsCount": 0
             }
 
         # 5. Data Persistence - Partitioned by time
@@ -260,10 +261,11 @@ def lambda_handler(event, context):
             "statusCode": 200,
             "body": json.dumps({
                 "message": "Data ingestion successful",
-                "record_count": feature_count,
+                "recordsCount": feature_count,
                 "ingestion_mode": ingestion_mode,
                 "s3_location": f"s3://{s3_bucket_name}/{destination_key}"
-            })
+            }),
+            "recordsCount": feature_count
         }
 
     except urllib.error.URLError as e:
