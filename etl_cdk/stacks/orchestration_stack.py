@@ -41,6 +41,9 @@ class OrchestrationStack(Stack):
             lambda_function=ingestion_lambda,
             integration_pattern=sfn.IntegrationPattern.REQUEST_RESPONSE,
             retry_on_service_exceptions=True,
+            result_selector={
+                "recordsCount.$": "$.Payload.recordsCount",
+            },
         )
 
         invoke_lambda.add_retry(
