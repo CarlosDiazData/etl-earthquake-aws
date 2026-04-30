@@ -154,7 +154,7 @@ def main():
     ).distinct() \
     .withColumn("LocationKey",
         F.substring(
-            F.md5(concat(
+            F.md5(F.concat(
                 F.col("latitude").cast("string"),
                 F.lit("|"),
                 F.col("longitude").cast("string"),
@@ -188,7 +188,7 @@ def main():
     df_dim_event_type = df_silver.select("event_type", "magType").distinct() \
     .withColumn("EventTypeKey",
         F.substring(
-            F.md5(concat(
+            F.md5(F.concat(
                 F.coalesce(F.col("event_type"), F.lit("NULL")),
                 F.lit("|"),
                 F.coalesce(F.col("magType"), F.lit("NULL"))
