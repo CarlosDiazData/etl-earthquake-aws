@@ -81,9 +81,10 @@ def main():
     logger.info("--- Step 2: Reading Silver Layer Data ---")
     try:
         logger.info(f"Reading Delta table from: {SILVER_PATH}")
-        silver_exists = spark._jvm.org.apache.hadoop.fs.FileSystem \
-            .get(spark._jsparkSession.sparkContext().hadoopConfiguration()) \
-            .exists(spark._jvm.org.apache.hadoop.fs.Path(SILVER_PATH))
+        silver_path_obj = spark._jvm.org.apache.hadoop.fs.Path(SILVER_PATH)
+        silver_exists = silver_path_obj.getFileSystem(
+            spark._jsparkSession.sparkContext().hadoopConfiguration()
+        ).exists(silver_path_obj)
 
         if not silver_exists:
             logger.warning(f"Silver path does not exist: {SILVER_PATH}. Skipping gold processing.")
