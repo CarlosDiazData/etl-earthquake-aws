@@ -16,8 +16,9 @@ Key Features:
       from the past year to populate the data lake.
     - **Incremental Loads**: Subsequent executions fetch only the last 48 hours,
       reducing cost and processing time.
-    - **Partitioned Storage**: Data stored as bronze/{year}/{month}/{day}/{hour}/
-      for efficient downstream processing.
+    - **Partitioned Storage**: Data stored as bronze/{year}/{month}/{day}/
+      for efficient downstream processing. Each execution creates a unique
+      file (UUID suffix) to prevent overwrites.
     - **Initial Load Tracking**: Uses a marker file in S3 to track backfill completion.
     - **Observability**: Structured logging for monitoring throughput and status.
     - **Efficiency**: Uses standard library `urllib` to minimize deployment package size.
@@ -113,11 +114,11 @@ def set_initial_load_complete(bucket_name: str):
 def build_partitioned_key(end_datetime: datetime) -> str:
     """
     Builds a time-partitioned S3 key with unique suffix per execution:
-    bronze/{year}/{month}/{day}/{hour}/raw_earthquakes_{uuid8}.json
+    bronze/{year}/{month}/{day}/raw_earthquakes_{uuid8}.json
 
-    The UUID suffix ensures each Lambda execution creates a unique file,
-    preventing data loss from overwrites when the function runs multiple
-    times within the same hour.
+    Partitioned by day (not hour) for simpler structure. The UUID suffix
+    ensures each Lambda execution creates a unique file, preventing data
+    loss from overwrites when the function runs multiple times per day.
     """
     unique_id = str(uuid.uuid4())[:8]
     return (
@@ -125,7 +126,6 @@ def build_partitioned_key(end_datetime: datetime) -> str:
         f"{end_datetime.year}/"
         f"{end_datetime.month:02d}/"
         f"{end_datetime.day:02d}/"
-        f"{end_datetime.hour:02d}/"
         f"raw_earthquakes_{unique_id}.json"
     )
 
