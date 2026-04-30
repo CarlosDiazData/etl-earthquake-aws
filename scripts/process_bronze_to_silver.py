@@ -110,8 +110,8 @@ def get_checkpoint_data():
     """Read checkpoint file to get last processed timestamp."""
     import json
     try:
-        checkpoint_path_obj = spark._jvm().org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
-        fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+        checkpoint_path_obj = spark._jvm.org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
+        fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
             spark._jsparkSession.sparkContext().hadoopConfiguration()
         )
         if fs.exists(checkpoint_path_obj):
@@ -127,8 +127,8 @@ def save_checkpoint(checkpoint_data):
     """Save checkpoint with last processed timestamp and list of processed partitions."""
     import json
     try:
-        checkpoint_path_obj = spark._jvm().org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
-        fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+        checkpoint_path_obj = spark._jvm.org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
+        fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
             spark._jsparkSession.sparkContext().hadoopConfiguration()
         )
         with fs.create(checkpoint_path_obj, overwrite=True) as f:
@@ -143,8 +143,8 @@ def get_bronze_partitions_to_process(checkpoint_data):
     Determine which bronze partitions need processing based on checkpoint.
     Returns list of partition paths under bronze/ that are newer than last processed.
     """
-    bronze_base_path = spark._jvm().org.apache.hadoop.fs.Path(BRONZE_PATH)
-    fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+    bronze_base_path = spark._jvm.org.apache.hadoop.fs.Path(BRONZE_PATH)
+    fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
         spark._jsparkSession.sparkContext().hadoopConfiguration()
     )
 
@@ -205,8 +205,8 @@ def main():
     logger.info("--- Step 2: Ingestion & Flattening ---")
 
     # Check if bronze path exists before attempting to read
-    bronze_path = spark._jvm().org.apache.hadoop.fs.Path(BRONZE_PATH)
-    bronze_fs = spark._jvm().org.apache.hadoop.fs.FileSystem \
+    bronze_path = spark._jvm.org.apache.hadoop.fs.Path(BRONZE_PATH)
+    bronze_fs = spark._jvm.org.apache.hadoop.fs.FileSystem \
         .get(spark._jsparkSession.sparkContext().hadoopConfiguration())
     bronze_exists = bronze_fs.exists(bronze_path)
 
