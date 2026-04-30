@@ -145,12 +145,23 @@ def main():
 
     # 3.2 DimLocation: Geographical context
     # Captures unique locations to reduce redundancy in the fact table.
+    # Uses deterministic hash-based key: same location always gets same key.
     logger.info("Generating 'DimLocation'...")
     df_dim_location = df_silver.select(
-        "latitude", "longitude", "place", "extracted_country", 
+        "latitude", "longitude", "place", "extracted_country",
         "extracted_region_detail", "hemisphere_ns", "hemisphere_ew"
     ).distinct() \
-    .withColumn("LocationKey", F.monotonically_increasing_id())
+    .withColumn("LocationKey",
+        F.substring(
+            F.md5(concat(
+                F.col("latitude").cast("string"),
+                F.lit("|"),
+                F.col("longitude").cast("string"),
+                F.lit("|"),
+                F.coalesce(F.col("place"), F.lit("NULL"))
+            )), 0, 16
+        ).cast("bigint")
+    )
     logger.info(f"DimLocation created with {df_dim_location.count()} unique locations.")
 
     # 3.3 DimMagnitude: Static Reference Dimension
@@ -171,9 +182,18 @@ def main():
         .withColumn("MagnitudeKey", F.monotonically_increasing_id())
 
     # 3.4 DimEventType: Event Classifications
+    # Uses deterministic hash-based key: same (event_type, magType) always gets same key.
     logger.info("Generating 'DimEventType'...")
     df_dim_event_type = df_silver.select("event_type", "magType").distinct() \
-        .withColumn("EventTypeKey", F.monotonically_increasing_id())
+    .withColumn("EventTypeKey",
+        F.substring(
+            F.md5(concat(
+                F.coalesce(F.col("event_type"), F.lit("NULL")),
+                F.lit("|"),
+                F.coalesce(F.col("magType"), F.lit("NULL"))
+            )), 0, 16
+        ).cast("bigint")
+    )
 
     # --- 4. Fact Table Construction Phase ---
     logger.info("--- Step 4: Constructing FactEarthquakeEvents ---")

@@ -35,6 +35,7 @@ import urllib.parse
 import urllib.error
 from datetime import datetime, timedelta, timezone
 import time
+import uuid
 
 # --- Configuration & Constants ---
 USGS_API_BASE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -111,15 +112,21 @@ def set_initial_load_complete(bucket_name: str):
 
 def build_partitioned_key(end_datetime: datetime) -> str:
     """
-    Builds a time-partitioned S3 key: bronze/{year}/{month}/{day}/{hour}/raw_earthquakes.json
+    Builds a time-partitioned S3 key with unique suffix per execution:
+    bronze/{year}/{month}/{day}/{hour}/raw_earthquakes_{uuid8}.json
+
+    The UUID suffix ensures each Lambda execution creates a unique file,
+    preventing data loss from overwrites when the function runs multiple
+    times within the same hour.
     """
+    unique_id = str(uuid.uuid4())[:8]
     return (
         f"{BRONZE_PREFIX}/"
         f"{end_datetime.year}/"
         f"{end_datetime.month:02d}/"
         f"{end_datetime.day:02d}/"
         f"{end_datetime.hour:02d}/"
-        f"raw_earthquakes.json"
+        f"raw_earthquakes_{unique_id}.json"
     )
 
 

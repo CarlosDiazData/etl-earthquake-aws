@@ -100,9 +100,98 @@ logger.info("Initializing Bronze to Silver ETL Job...")
 # Environment Variables & Paths
 S3_BUCKET = args['S3_BUCKET_NAME']
 # Input: Raw JSON data
-BRONZE_PATH = f"s3://{S3_BUCKET}/bronze/" 
+BRONZE_PATH = f"s3://{S3_BUCKET}/bronze/"
 # Output: Cleaned Delta Table
 SILVER_PATH = f"s3://{S3_BUCKET}/silver/earthquakes_cleaned/"
+# Checkpoint for incremental processing (tracks last successful batch)
+CHECKPOINT_PATH = f"s3://{S3_BUCKET}/bronze/.checkpoint/bronze_to_silver_checkpoint.json"
+
+def get_checkpoint_data():
+    """Read checkpoint file to get last processed timestamp."""
+    import json
+    try:
+        checkpoint_path_obj = spark._jvm().org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
+        fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+            spark._jsparkSession.sparkContext().hadoopConfiguration()
+        )
+        if fs.exists(checkpoint_path_obj):
+            with fs.open(checkpoint_path_obj) as f:
+                content = f.read().decode('utf-8')
+                return json.loads(content)
+    except Exception as e:
+        logger.warning(f"Could not read checkpoint, starting fresh: {e}")
+    return {"last_processed": None, "processed_partitions": []}
+
+
+def save_checkpoint(checkpoint_data):
+    """Save checkpoint with last processed timestamp and list of processed partitions."""
+    import json
+    try:
+        checkpoint_path_obj = spark._jvm().org.apache.hadoop.fs.Path(CHECKPOINT_PATH)
+        fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+            spark._jsparkSession.sparkContext().hadoopConfiguration()
+        )
+        with fs.create(checkpoint_path_obj, overwrite=True) as f:
+            f.write(json.dumps(checkpoint_data).encode('utf-8'))
+        logger.info(f"Checkpoint saved: {checkpoint_data}")
+    except Exception as e:
+        logger.warning(f"Could not save checkpoint: {e}")
+
+
+def get_bronze_partitions_to_process(checkpoint_data):
+    """
+    Determine which bronze partitions need processing based on checkpoint.
+    Returns list of partition paths under bronze/ that are newer than last processed.
+    """
+    bronze_base_path = spark._jvm().org.apache.hadoop.fs.Path(BRONZE_PATH)
+    fs = spark._jvm().org.apache.hadoop.fs.FileSystem.get(
+        spark._jsparkSession.sparkContext().hadoopConfiguration()
+    )
+
+    if not fs.exists(bronze_base_path):
+        return []
+
+    last_processed = checkpoint_data.get("last_processed")
+    processed_partitions = set(checkpoint_data.get("processed_partitions", []))
+
+    partitions_to_process = []
+
+    # List all year directories
+    year_dirs = [f for f in fs.listStatus(bronze_base_path) if f.isDirectory()]
+    for year_dir in year_dirs:
+        year = year_dir.getPath().getName()
+        if not year.isdigit():
+            continue
+        year_path = year_dir.getPath()
+
+        # List all month directories
+        month_dirs = [f for f in fs.listStatus(year_path) if f.isDirectory()]
+        for month_dir in month_dirs:
+            month = month_dir.getPath().getName()
+            if not month.isdigit():
+                continue
+            month_path = month_dir.getPath()
+
+            # List all day directories
+            day_dirs = [f for f in fs.listStatus(month_path) if f.isDirectory()]
+            for day_dir in day_dirs:
+                day = day_dir.getPath().getName()
+                if not day.isdigit():
+                    continue
+
+                partition_path = f"bronze/{year}/{month}/{day}"
+                partition_key = f"{year}/{month}/{day}"
+
+                # Skip already processed partitions (idempotency)
+                if partition_key in processed_partitions:
+                    logger.info(f"Skipping already processed partition: {partition_path}")
+                    continue
+
+                partitions_to_process.append(partition_path)
+
+    logger.info(f"Found {len(partitions_to_process)} new partitions to process")
+    return partitions_to_process
+
 
 def main():
     """
@@ -126,8 +215,20 @@ def main():
         return
 
     try:
-        logger.info(f"Reading raw JSON data from: {BRONZE_PATH}")
-        df_bronze_raw = spark.read.schema(USGS_SCHEMA).json(BRONZE_PATH)
+        # Read checkpoint to determine which partitions to process
+        checkpoint_data = get_checkpoint_data()
+        partitions_to_process = get_bronze_partitions_to_process(checkpoint_data)
+
+        if not partitions_to_process:
+            logger.info("No new partitions to process based on checkpoint. Skipping.")
+            return
+
+        # Build explicit list of S3 paths to read (only new partitions)
+        paths_to_read = [f"s3://{S3_BUCKET}/{p}/*.json" for p in partitions_to_process]
+        logger.info(f"Reading {len(paths_to_read)} partition(s) based on checkpoint")
+        logger.info(f"Partitions: {partitions_to_process}")
+
+        df_bronze_raw = spark.read.schema(USGS_SCHEMA).json(paths_to_read)
 
         # Graceful exit if no data found
         if df_bronze_raw.rdd.isEmpty():
