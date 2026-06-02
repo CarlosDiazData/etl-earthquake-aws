@@ -2,83 +2,34 @@
 
 [![AWS](https://img.shields.io/badge/AWS-CDK_2.248.0-orange)](https://aws.amazon.com/cdk/)
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org/)
+[![PySpark](https://img.shields.io/badge/PySpark-Glue_5.0-red)](https://aws.amazon.com/glue/)
+[![Tests](https://img.shields.io/badge/Tests-pytest-brightgreen)]()
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 A production-ready ETL (Extract, Transform, Load) data pipeline on AWS that ingests earthquake data from the USGS (United States Geological Survey) API, processes it through a medallion architecture (Bronze/Silver/Gold), and provides monitoring and alerting capabilities.
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              EARTHQUAKE ETL PIPELINE                               │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    USGS[USGS Earthquake API] -->|REST fetch| INGEST[AWS Lambda<br/>EventBridge Scheduled]
+    INGEST -->|store raw JSON| BRONZE[S3 Bronze<br/>Raw JSON<br/>Immutable & Versioned]
 
-    ┌─────────────┐     ┌─────────────────────────────────────────────────────────┐
-    │   USGS API  │────▶│                    INGESTION LAYER                     │
-    │ (Earthquake │     │  ┌─────────────────────────────────────────────────────┐  │
-    │    Data)    │     │  │  AWS Lambda (Scheduled via EventBridge)            │  │
-    └─────────────┘     │  │  - Fetches data from USGS REST API                   │  │
-                      │  │  - Stores raw JSON to S3 Bronze Layer                 │  │
-                      │  └─────────────────────────────────────────────────────┘  │
-                      └──────────────────────────┬────────────────────────────────┘
-                                                 │
-                                                 ▼
-    ┌───────────────────────────────────────────────────────────────────────────────┐
-    │                           DATA LAKE (S3)                                       │
-    │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────────┐  │
-    │  │     BRONZE       │  │      SILVER      │  │           GOLD               │  │
-    │  │   (Raw Data)    │──▶│  (Cleaned Data)  │──▶│    (Aggregated/Analytics)   │  │
-    │  │                  │  │                  │  │                              │  │
-    │  │ - Raw JSON       │  │ - Delta Format   │  │ - Parquet Format            │  │
-    │  │ - Immutable      │  │ - Deduplicated   │  │ - Business-ready tables     │  │
-    │  │ - Versioned     │  │ - Validated      │  │ - Aggregations              │  │
-    │  └──────────────────┘  └──────────────────┘  └──────────────────────────────┘  │
-    └───────────────────────────────────────────────────────────────────────────────┘
-                                                 │
-    ┌────────────────────────────────────────────┴───────────────────────────────────┐
-    │                           PROCESSING LAYER                                     │
-    │  ┌─────────────────────────────────────────────────────────────────────────────┐│
-    │  │                    AWS GLUE JOBS (PySpark)                                 ││
-    │  │  ┌─────────────────────────────┐  ┌─────────────────────────────────────────┐││
-    │  │  │   Bronze → Silver Job      │  │   Silver → Gold Job                    │││
-    │  │  │   - Flatten JSON           │  │   - Aggregations                      │││
-    │  │  │   - Data validation         │  │   - Business transformations          │││
-    │  │  │   - Deduplication           │  │   - Analytics tables                  │││
-    │  │  │   - Feature engineering     │  │                                       │││
-    │  │  └─────────────────────────────┘  └─────────────────────────────────────────┘││
-    │  └─────────────────────────────────────────────────────────────────────────────┘│
-    └─────────────────────────────────────────────────────────────────────────────────┘
-                                                 │
-    ┌────────────────────────────────────────────┴───────────────────────────────────┐
-    │                          ORCHESTRATION LAYER                                   │
-    │  ┌─────────────────────────────────────────────────────────────────────────────┐│
-    │  │                    AWS STEP FUNCTIONS                                      ││
-    │  │                                                                          ││
-    │  │   ┌──────────┐    ┌─────────────────┐    ┌────────────────────────────┐   ││
-    │  │   │ Ingestion│───▶│Bronze→Silver Job│───▶│Silver→Gold Job             │   ││
-    │  │   │ Lambda   │    │ (Glue)          │    │ (Glue)                     │   ││
-    │  │   └──────────┘    └─────────────────┘    └────────────────────────────┘   ││
-    │  │                                                                          ││
-    │  │   ┌─────────────────────────────────────────────────────────────────┐     ││
-    │  │   │                    Error Handling & Retry Logic               │     ││
-    │  │   └─────────────────────────────────────────────────────────────────┘     ││
-    │  └─────────────────────────────────────────────────────────────────────────────┘│
-    └─────────────────────────────────────────────────────────────────────────────────┘
-                                                 │
-    ┌────────────────────────────────────────────┴───────────────────────────────────┐
-    │                           MONITORING LAYER                                     │
-    │  ┌─────────────────────────────────────────────────────────────────────────────┐│
-    │  │                    CLOUDWATCH                                             ││
-    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  ││
-    │  │  │Job Failures │  │Duration     │  │Cost Alarms  │  │   Dashboard    │  ││
-    │  │  │   Alarm     │  │   Alarm     │  │   Alarm     │  │   (Metrics)    │  ││
-    │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────┘  ││
-    │  │                                                                          ││
-    │  │  ┌─────────────────────────────────────────────────────────────────────┐   ││
-    │  │  │ SNS Topic → Email Notifications                                    │   ││
-    │  │  └─────────────────────────────────────────────────────────────────────┘   ││
-    │  └─────────────────────────────────────────────────────────────────────────────┘│
-    └─────────────────────────────────────────────────────────────────────────────────┘
+    BRONZE -->|PySpark| BS[Glue Job<br/>Bronze → Silver]
+    BS -->|Delta Format| SILVER[S3 Silver<br/>Cleaned & Deduplicated<br/>Feature Engineering]
+
+    SILVER -->|PySpark| SG[Glue Job<br/>Silver → Gold]
+    SG -->|Parquet Format| GOLD[S3 Gold<br/>Aggregated Tables<br/>Analytics-ready]
+
+    subgraph Orchestration
+        SF[AWS Step Functions<br/>Retry Logic & Error Handling]
+    end
+
+    INGEST -.-> SF
+    BS -.-> SF
+    SG -.-> SF
+    SF -->|metrics + alarms| CW[CloudWatch<br/>Dashboard & Alarms]
+    CW -->|notifications| SNS[SNS → Email]
 ```
 
 ## Technology Stack
