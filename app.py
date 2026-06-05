@@ -3,9 +3,7 @@ import aws_cdk as cdk
 from aws_cdk import Environment
 from etl_cdk.stacks.data_lake_stack import DataLakeStack
 from etl_cdk.stacks.ingestion_stack import IngestionStack
-from etl_cdk.stacks.glue_stack import GlueStack
-from etl_cdk.stacks.orchestration_stack import OrchestrationStack
-from etl_cdk.stacks.monitoring_stack import MonitoringStack
+from etl_cdk.stacks.pipeline_stack import PipelineStack
 
 APP_NAME = "earthquake-etl"
 
@@ -44,41 +42,17 @@ ingestion = IngestionStack(
 )
 ingestion.add_dependency(data_lake)
 
-glue = GlueStack(
+pipeline = PipelineStack(
     app,
-    f"{APP_NAME}-glue-{ENV_NAME}",
+    f"{APP_NAME}-pipeline-{ENV_NAME}",
     app_name=APP_NAME,
     env_name=ENV_NAME,
     data_bucket=data_lake.data_bucket,
     scripts_bucket=data_lake.scripts_bucket,
-    env=deploy_env,
-)
-glue.add_dependency(data_lake)
-
-orchestration = OrchestrationStack(
-    app,
-    f"{APP_NAME}-orchestration-{ENV_NAME}",
-    app_name=APP_NAME,
-    env_name=ENV_NAME,
     ingestion_lambda=ingestion.ingestion_lambda,
-    bronze_to_silver_job=glue.bronze_to_silver_job,
-    silver_to_gold_job=glue.silver_to_gold_job,
-    data_bucket=data_lake.data_bucket,
     env=deploy_env,
 )
-orchestration.add_dependency(ingestion)
-orchestration.add_dependency(glue)
-
-MonitoringStack(
-    app,
-    f"{APP_NAME}-monitoring-{ENV_NAME}",
-    app_name=APP_NAME,
-    env_name=ENV_NAME,
-    data_bucket=data_lake.data_bucket,
-    bronze_to_silver_job=glue.bronze_to_silver_job,
-    silver_to_gold_job=glue.silver_to_gold_job,
-    state_machine=orchestration.state_machine,
-    env=deploy_env,
-)
+pipeline.add_dependency(data_lake)
+pipeline.add_dependency(ingestion)
 
 app.synth()

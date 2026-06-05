@@ -119,7 +119,7 @@ etl-earthquake-aws/
 │
 ├── scripts/
 │   ├── process_bronze_to_silver.py   # Bronze→Silver Glue job
-│   └── prosses_silver_gold.py        # Silver→Gold Glue job
+│   └── process_silver_to_gold.py        # Silver→Gold Glue job
 │
 └── tests/
     └── unit/

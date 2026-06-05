@@ -3,7 +3,7 @@ Unit tests for ETL pipeline data integrity fixes.
 
 Tests the three P0 remediation changes:
 1. UUID suffix in api_to_bronze.py for unique bronze file names
-2. Deterministic hash-based surrogate keys in prosses_silver_gold.py
+2. Deterministic hash-based surrogate keys in process_silver_to_gold.py
 3. Checkpoint-based read filtering logic in process_bronze_to_silver.py
 """
 
