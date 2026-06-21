@@ -6,6 +6,10 @@
 
 A production-ready ETL (Extract, Transform, Load) data pipeline on AWS that ingests earthquake data from the USGS (United States Geological Survey) API, processes it through a medallion architecture (Bronze/Silver/Gold), and provides monitoring and alerting capabilities.
 
+## Dashboard
+
+![](https://raw.githubusercontent.com/CarlosDiazData/etl-earthquake-gcp/refs/heads/main/reports/assets/report%20overview.png)
+
 ## Architecture Overview
 
 ```
@@ -119,7 +123,7 @@ etl-earthquake-aws/
 │
 ├── scripts/
 │   ├── process_bronze_to_silver.py   # Bronze→Silver Glue job
-│   └── prosses_silver_gold.py        # Silver→Gold Glue job
+│   └── process_silver_to_gold.py        # Silver→Gold Glue job
 │
 └── tests/
     └── unit/
